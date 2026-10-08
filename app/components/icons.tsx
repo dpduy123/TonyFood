@@ -39,39 +39,7 @@ export function HeartIcon({
   );
 }
 
-export function HomeIcon({
-  filled = false,
-  className = "w-6 h-6",
-  ...props
-}: { filled?: boolean } & React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth={filled ? "1" : "2"}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      {...props}
-    >
-      {filled ? (
-        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="currentColor" />
-      ) : (
-        <>
-          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-          <polyline points="9 22 9 12 15 12 15 22" />
-        </>
-      )}
-    </svg>
-  );
-}
-
-export function CompassIcon({
-  filled = false,
-  className = "w-6 h-6",
-  ...props
-}: { filled?: boolean } & React.SVGProps<SVGSVGElement>) {
+export function FilterIcon({ className = "w-4 h-4", ...props }: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -83,21 +51,12 @@ export function CompassIcon({
       className={className}
       {...props}
     >
-      <circle cx="12" cy="12" r="10" />
-      {filled ? (
-        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor" />
-      ) : (
-        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-      )}
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
     </svg>
   );
 }
 
-export function CartIcon({
-  filled = false,
-  className = "w-6 h-6",
-  ...props
-}: { filled?: boolean } & React.SVGProps<SVGSVGElement>) {
+export function MessageCircleIcon({ className = "w-5 h-5", ...props }: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -109,27 +68,30 @@ export function CartIcon({
       className={className}
       {...props}
     >
-      <circle cx="8" cy="21" r="1" />
-      <circle cx="19" cy="21" r="1" />
-      <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+      <path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z" />
     </svg>
   );
 }
 
-export function PlusIcon({ className = "w-4 h-4", ...props }: React.SVGProps<SVGSVGElement>) {
+export function ZaloIcon({ className = "w-6 h-6", ...props }: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      {...props}
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
+    <svg viewBox="0 0 48 48" fill="none" className={className} {...props}>
+      <circle cx="24" cy="24" r="24" fill="#0068FF" />
+      <path
+        d="M34.2 27.2c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-.9 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.7-1.7-1-.9-1.7-2-1.9-2.3-.2-.3 0-.5.1-.7.1-.1.3-.4.5-.5.2-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.2-.7-1.8-1-2.4-.3-.6-.6-.5-.8-.5h-.7c-.2 0-.6.1-.9.4-.3.4-1.2 1.2-1.2 2.9s1.2 3.4 1.4 3.6c.2.2 2.4 3.7 5.9 5.2.8.4 1.5.6 2 .8.8.3 1.6.2 2.2.1.7-.1 2.1-.9 2.4-1.7.3-.8.3-1.5.2-1.7-.1-.2-.3-.3-.6-.4z"
+        fill="#FFFFFF"
+      />
+      <text
+        x="24"
+        y="30"
+        textAnchor="middle"
+        fill="#FFFFFF"
+        fontFamily="sans-serif"
+        fontWeight="bold"
+        fontSize="14"
+      >
+        Zalo
+      </text>
     </svg>
   );
 }
@@ -151,48 +113,21 @@ export function CheckIcon({ className = "w-4 h-4", ...props }: React.SVGProps<SV
   );
 }
 
-export function SignalIcon({ className = "w-4 h-4", ...props }: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} {...props}>
-      <rect x="2" y="16" width="3" height="6" rx="0.5" />
-      <rect x="8" y="12" width="3" height="10" rx="0.5" />
-      <rect x="14" y="8" width="3" height="14" rx="0.5" />
-      <rect x="20" y="4" width="3" height="18" rx="0.5" />
-    </svg>
-  );
-}
-
-export function WifiIcon({ className = "w-4 h-4", ...props }: React.SVGProps<SVGSVGElement>) {
+export function ExternalLinkIcon({ className = "w-4 h-4", ...props }: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.5"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       {...props}
     >
-      <path d="M5 13a10 10 0 0 1 14 0" />
-      <path d="M8.5 16.5a5 5 0 0 1 7 0" />
-      <path d="M12 20h.01" />
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
     </svg>
   );
 }
-
-export function BatteryIcon({ className = "w-5 h-5", ...props }: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      {...props}
-    >
-      <rect x="2" y="7" width="16" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
-      <rect x="4" y="9" width="10" height="6" rx="1" />
-      <path d="M20 10v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
