@@ -38,82 +38,13 @@ export async function GET(request: Request) {
     if (!auth.supabase) return auth.response;
     const supabase = auth.supabase;
 
-    const [
-      { data: categories, error: categoriesError },
-      { data: tags, error: tagsError },
-      { data: products, error: productsError },
-    ] = await Promise.all([
-      supabase.from("categories").select("id,name,slug").order("name"),
-      supabase.from("tags").select("id,name,slug").order("name"),
-      supabase
-        .from("products")
-        .select("id,name,slug,short_description,base_price,unit,stock,status,category_id")
-        .order("name"),
-    ]);
-
-    if (categoriesError || tagsError || productsError) {
-      console.error("Admin catalog query failed.", {
-        categoriesError: categoriesError?.message,
-        tagsError: tagsError?.message,
-        productsError: productsError?.message,
-      });
+    const { data, error } = await supabase.rpc("api_admin_catalog");
+    if (error) {
+      console.error("Admin catalog RPC failed.", error.message);
       return NextResponse.json({ error: "Không thể tải danh mục quản trị." }, { status: 502 });
     }
 
-    const ids = (products ?? []).map((product) => product.id);
-    const [{ data: images, error: imagesError }, { data: productTags, error: productTagsError }] =
-      ids.length > 0
-        ? await Promise.all([
-            supabase
-              .from("product_images")
-              .select("product_id,url,is_primary")
-              .in("product_id", ids),
-            supabase
-              .from("product_tags")
-              .select("product_id,tag_id")
-              .in("product_id", ids),
-          ])
-        : [
-            { data: [], error: null },
-            { data: [], error: null },
-          ];
-
-    if (imagesError || productTagsError) {
-      console.error("Admin catalog relations query failed.", {
-        imagesError: imagesError?.message,
-        productTagsError: productTagsError?.message,
-      });
-      return NextResponse.json({ error: "Không thể tải ảnh hoặc nhãn sản phẩm." }, { status: 502 });
-    }
-
-    const categoryMap = new Map((categories ?? []).map((item) => [item.id, item]));
-    const tagMap = new Map((tags ?? []).map((item) => [item.id, item]));
-    const imageMap = new Map<string, string>();
-    for (const image of [...(images ?? [])].sort(
-      (a, b) => Number(b.is_primary) - Number(a.is_primary)
-    )) {
-      if (!imageMap.has(image.product_id)) imageMap.set(image.product_id, image.url);
-    }
-    const tagsByProduct = new Map<string, { id: string; name: string }[]>();
-    for (const relation of productTags ?? []) {
-      const tag = tagMap.get(relation.tag_id);
-      if (!tag) continue;
-      const productTagList = tagsByProduct.get(relation.product_id) ?? [];
-      productTagList.push({ id: tag.id, name: tag.name });
-      tagsByProduct.set(relation.product_id, productTagList);
-    }
-
-    return NextResponse.json({
-      categories: categories ?? [],
-      tags: tags ?? [],
-      products: (products ?? []).map((product) => ({
-        ...product,
-        price: Number(product.base_price),
-        categoryName: categoryMap.get(product.category_id)?.name ?? "Không rõ",
-        imageUrl: imageMap.get(product.id) ?? "",
-        tags: tagsByProduct.get(product.id) ?? [],
-      })),
-    });
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Admin catalog API failed.", error instanceof Error ? error.message : "Unknown error");
     return NextResponse.json({ error: "Dịch vụ quản lý sản phẩm hiện không khả dụng." }, { status: 503 });

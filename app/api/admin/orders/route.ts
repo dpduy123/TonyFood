@@ -11,54 +11,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Bạn không có quyền truy cập." }, { status: 403 });
     }
 
-    const { data: orders, error: ordersError } = await supabase
-      .from("orders")
-      .select(
-        "id,order_number,customer_name,customer_phone,delivery_address,note,admin_note,is_paid,status,subtotal,total,created_at"
-      )
-      .order("created_at", { ascending: false })
-      .limit(100);
-
-    if (ordersError) {
-      console.error("Admin order listing failed.", ordersError.message);
+    const { data, error } = await supabase.rpc("api_admin_orders");
+    if (error) {
+      console.error("Admin orders RPC failed.", error.message);
       return NextResponse.json(
         { error: "Không thể tải danh sách đơn hàng." },
         { status: 502 }
       );
     }
 
-    const orderIds = (orders ?? []).map((order) => order.id);
-    const { data: items, error: itemsError } =
-      orderIds.length > 0
-        ? await supabase
-            .from("order_items")
-            .select(
-              "id,order_id,product_name,product_unit,quantity,unit_price,total_price"
-            )
-            .in("order_id", orderIds)
-        : { data: [], error: null };
-
-    if (itemsError) {
-      console.error("Admin order items query failed.", itemsError.message);
-      return NextResponse.json(
-        { error: "Không thể tải chi tiết đơn hàng." },
-        { status: 502 }
-      );
-    }
-
-    const itemsByOrder = new Map<string, typeof items>();
-    for (const item of items ?? []) {
-      const orderItems = itemsByOrder.get(item.order_id) ?? [];
-      orderItems.push(item);
-      itemsByOrder.set(item.order_id, orderItems);
-    }
-
-    return NextResponse.json({
-      orders: (orders ?? []).map((order) => ({
-        ...order,
-        items: itemsByOrder.get(order.id) ?? [],
-      })),
-    });
+    return NextResponse.json({ orders: data ?? [] });
   } catch (error) {
     console.error(
       "Admin order API configuration failed.",

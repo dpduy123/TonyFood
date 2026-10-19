@@ -31,6 +31,15 @@ interface AdminOrder {
   items: AdminOrderItem[];
 }
 
+interface WebhookEvent {
+  id: string;
+  schema_name: string;
+  table_name: string;
+  event_type: "INSERT" | "UPDATE" | "DELETE";
+  row_id: string;
+  received_at: string;
+}
+
 function formatPrice(value: number | string) {
   return new Intl.NumberFormat("vi-VN").format(Number(value)) + "₫";
 }
@@ -58,13 +67,17 @@ function statusLabel(status: string) {
 export default function AdminPage() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([]);
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [loadingWebhookEvents, setLoadingWebhookEvents] = useState(false);
   const [workingOrder, setWorkingOrder] = useState<string | null>(null);
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [activeSection, setActiveSection] = useState<"products" | "orders">("orders");
+  const [activeSection, setActiveSection] = useState<
+    "products" | "orders" | "webhooks"
+  >("orders");
 
   const loadOrders = useCallback(async (token: string) => {
     setLoading(true);
@@ -97,6 +110,31 @@ export default function AdminPage() {
       }
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const loadWebhookEvents = useCallback(async (token: string) => {
+    setLoadingWebhookEvents(true);
+    let status: number | null = null;
+    try {
+      const response = await fetch("/api/admin/webhook-events", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      status = response.status;
+      const payload = (await response.json()) as {
+        events?: WebhookEvent[];
+        error?: string;
+      };
+      if (!response.ok || !Array.isArray(payload.events)) {
+        throw new Error(payload.error ?? "Could not load webhook event history.");
+      }
+      setWebhookEvents(payload.events);
+    } catch (error) {
+      logClientRequestFailure("GET /api/admin/webhook-events", status, error);
+      if (status === 401 || status === 403) setAccessToken(null);
+    } finally {
+      setLoadingWebhookEvents(false);
     }
   }, []);
 
@@ -137,6 +175,15 @@ export default function AdminPage() {
     return () => window.clearTimeout(timer);
   }, [accessToken, loadOrders]);
 
+  useEffect(() => {
+    if (!accessToken || activeSection !== "webhooks") return;
+    const timer = window.setTimeout(
+      () => void loadWebhookEvents(accessToken),
+      0
+    );
+    return () => window.clearTimeout(timer);
+  }, [accessToken, activeSection, loadWebhookEvents]);
+
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
@@ -172,6 +219,7 @@ export default function AdminPage() {
       if (signOutError) throw signOutError;
       setAccessToken(null);
       setOrders([]);
+      setWebhookEvents([]);
       setActiveSection("orders");
     } catch (signOutError) {
       logClientRequestFailure("Supabase Auth signOut", null, signOutError);
@@ -333,11 +381,80 @@ export default function AdminPage() {
               >
                 Đơn hàng
               </button>
+              <button
+                type="button"
+                aria-current={activeSection === "webhooks" ? "page" : undefined}
+                onClick={() => setActiveSection("webhooks")}
+                className={`flex-1 rounded-xl px-4 py-3 text-left text-sm font-semibold md:flex-none ${
+                  activeSection === "webhooks"
+                    ? "bg-[#0047AB] text-white"
+                    : "text-neutral-700 hover:bg-neutral-100"
+                }`}
+              >
+                Webhook logs
+              </button>
             </nav>
 
             <section className="min-w-0">
             {activeSection === "products" ? (
               <AdminCatalogPanel accessToken={accessToken} />
+            ) : activeSection === "webhooks" ? (
+              <section>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold">Lịch sử webhook</h2>
+                    <p className="mt-1 text-sm text-neutral-500">
+                      Chỉ lưu loại sự kiện và mã bản ghi, không lưu payload có thông tin khách hàng.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={loadingWebhookEvents}
+                    onClick={() => void loadWebhookEvents(accessToken)}
+                    className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                  >
+                    {loadingWebhookEvents ? "Đang tải..." : "Làm mới"}
+                  </button>
+                </div>
+                {loadingWebhookEvents && webhookEvents.length === 0 ? (
+                  <p className="rounded-2xl bg-white p-8 text-center text-sm text-neutral-500">
+                    Đang tải lịch sử webhook...
+                  </p>
+                ) : webhookEvents.length === 0 ? (
+                  <p className="rounded-2xl bg-white p-8 text-center text-sm text-neutral-500">
+                    Chưa nhận webhook nào.
+                  </p>
+                ) : (
+                  <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+                    <div className="divide-y divide-neutral-100">
+                      {webhookEvents.map((event) => (
+                        <article
+                          key={event.id}
+                          className="grid gap-2 p-4 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-semibold">
+                              {event.event_type} · {event.table_name}
+                            </p>
+                            <p className="mt-1 break-all font-mono text-xs text-neutral-500">
+                              {event.row_id}
+                            </p>
+                          </div>
+                          <time
+                            dateTime={event.received_at}
+                            className="text-xs text-neutral-500"
+                          >
+                            {formatDate(event.received_at)}
+                          </time>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p className="mt-3 text-xs text-neutral-500">
+                  Hiển thị tối đa 100 sự kiện gần đây. Nhật ký cũ hơn 90 ngày được dọn dẹp.
+                </p>
+              </section>
             ) : (
               <>
             <div className="mb-4 flex items-center justify-between">

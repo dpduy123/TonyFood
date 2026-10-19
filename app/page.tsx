@@ -12,6 +12,7 @@ import { useCart } from "./components/cart-provider";
 import { CATEGORIES, PRICE_RANGES } from "./data/snacks";
 import type { CatalogProduct } from "./data/snacks";
 import { logClientRequestFailure } from "@/lib/client-request-log";
+import { loadCatalog } from "./data/catalog-client";
 
 export default function CatalogPage() {
   const zaloUrl =
@@ -29,26 +30,14 @@ export default function CatalogPage() {
   useEffect(() => {
     let active = true;
     async function loadProducts() {
-      let status: number | null = null;
       try {
-        const response = await fetch("/api/products", { cache: "no-store" });
-        status = response.status;
-        const payload = (await response.json()) as {
-          products?: CatalogProduct[];
-          categories?: string[];
-          error?: string;
-        };
-        if (!response.ok || !Array.isArray(payload.products)) {
-          throw new Error(payload.error ?? "Không thể tải sản phẩm.");
-        }
+        const catalog = await loadCatalog();
         if (active) {
-          setProducts(payload.products);
-          if (Array.isArray(payload.categories)) {
-            setCategories(["Tất cả", ...payload.categories]);
-          }
+          setProducts(catalog.products);
+          setCategories(["Tất cả", ...catalog.categories]);
         }
       } catch (error) {
-        if (active) logClientRequestFailure("GET /api/products", status, error);
+        if (active) logClientRequestFailure("GET /api/products", null, error);
       } finally {
         if (active) setProductsLoading(false);
       }

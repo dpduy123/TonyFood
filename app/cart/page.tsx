@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useCart } from "../components/cart-provider";
 import type { CatalogProduct } from "../data/snacks";
+import { loadCatalog } from "../data/catalog-client";
+import { logClientRequestFailure } from "@/lib/client-request-log";
 
 interface CreatedOrder {
   orderNumber: string;
@@ -30,17 +32,11 @@ export default function CartPage() {
     let active = true;
     async function loadProducts() {
       try {
-        const response = await fetch("/api/products", { cache: "no-store" });
-        const payload = (await response.json()) as {
-          products?: CatalogProduct[];
-          error?: string;
-        };
-        if (!response.ok || !Array.isArray(payload.products)) {
-          throw new Error(payload.error ?? "Không thể tải sản phẩm trong giỏ.");
-        }
-        if (active) setProducts(payload.products);
+        const catalog = await loadCatalog();
+        if (active) setProducts(catalog.products);
       } catch (error) {
         if (active) {
+          logClientRequestFailure("GET /api/products", null, error);
           setLoadError(
             error instanceof Error
               ? error.message
