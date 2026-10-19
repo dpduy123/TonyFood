@@ -11,6 +11,7 @@ export interface CatalogProduct {
   image: string;
   bgColor: string;
   badge?: string;
+  tags?: string[];
 }
 
 export const CATEGORIES = [

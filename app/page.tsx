@@ -11,6 +11,7 @@ import {
 import { useCart } from "./components/cart-provider";
 import { CATEGORIES, PRICE_RANGES } from "./data/snacks";
 import type { CatalogProduct } from "./data/snacks";
+import { logClientRequestFailure } from "@/lib/client-request-log";
 
 export default function CatalogPage() {
   const zaloUrl =
@@ -22,30 +23,32 @@ export default function CatalogPage() {
   const [selectedPriceRange, setSelectedPriceRange] = useState("all");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [categories, setCategories] = useState<string[]>(CATEGORIES);
   const [productsLoading, setProductsLoading] = useState(true);
-  const [productsError, setProductsError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     async function loadProducts() {
+      let status: number | null = null;
       try {
         const response = await fetch("/api/products", { cache: "no-store" });
+        status = response.status;
         const payload = (await response.json()) as {
           products?: CatalogProduct[];
+          categories?: string[];
           error?: string;
         };
         if (!response.ok || !Array.isArray(payload.products)) {
           throw new Error(payload.error ?? "Không thể tải sản phẩm.");
         }
-        if (active) setProducts(payload.products);
-      } catch (error) {
         if (active) {
-          setProductsError(
-            error instanceof Error
-              ? error.message
-              : "Danh mục sản phẩm hiện không khả dụng."
-          );
+          setProducts(payload.products);
+          if (Array.isArray(payload.categories)) {
+            setCategories(["Tất cả", ...payload.categories]);
+          }
         }
+      } catch (error) {
+        if (active) logClientRequestFailure("GET /api/products", status, error);
       } finally {
         if (active) setProductsLoading(false);
       }
@@ -202,7 +205,7 @@ export default function CatalogPage() {
         {/* Bộ Lọc 1: Danh Mục Sản Phẩm (Category Pills) */}
         <div className="mb-4">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            {CATEGORIES.map((cat) => {
+            {categories.map((cat) => {
               const isActive = selectedCategory === cat;
               return (
                 <button
@@ -260,14 +263,7 @@ export default function CatalogPage() {
         </div>
 
         {/* Danh Sách Mặt Hàng (Product Catalog Grid) */}
-        {productsError ? (
-          <div role="alert" className="bg-white rounded-3xl p-8 text-center border border-red-200 my-4">
-            <p className="text-sm font-semibold text-red-700">{productsError}</p>
-            <p className="text-xs text-neutral-500 mt-2">
-              Vui lòng thử tải lại trang hoặc liên hệ shop qua Zalo.
-            </p>
-          </div>
-        ) : productsLoading ? (
+        {productsLoading ? (
           <div className="bg-white rounded-3xl p-8 text-center border border-neutral-200/70 my-4">
             <p className="text-sm text-neutral-500">Đang tải sản phẩm...</p>
           </div>
@@ -303,11 +299,22 @@ export default function CatalogPage() {
                 {/* Thông tin bên trái */}
                 <div className="relative z-10 max-w-full sm:max-w-[60%] flex flex-col justify-between mb-3 sm:mb-0">
                   <div>
-                    {item.badge && (
+                    {item.tags?.length ? (
+                      <div className="mb-2 flex flex-wrap gap-1.5">
+                        {item.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-block rounded-full border border-neutral-200/50 bg-white px-2.5 py-0.5 text-[10px] font-bold text-neutral-800 shadow-2xs"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : item.badge ? (
                       <span className="inline-block px-2.5 py-0.5 rounded-full bg-white text-[10px] font-bold text-neutral-800 mb-2 border border-neutral-200/50 shadow-2xs">
                         {item.badge}
                       </span>
-                    )}
+                    ) : null}
                     <h3 className="text-base sm:text-lg font-bold text-neutral-900 tracking-tight leading-snug">
                       {item.name}
                     </h3>

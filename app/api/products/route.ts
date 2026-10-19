@@ -45,18 +45,37 @@ export async function GET() {
     }
 
     const productIds = (products ?? []).map((product) => product.id);
-    const { data: images, error: imagesError } =
+    const [
+      { data: images, error: imagesError },
+      { data: productTags, error: productTagsError },
+      { data: tags, error: tagsError },
+    ] =
       productIds.length > 0
-        ? await supabase
-            .from("product_images")
-            .select("product_id,url,is_primary")
-            .in("product_id", productIds)
-        : { data: [], error: null };
+        ? await Promise.all([
+            supabase
+              .from("product_images")
+              .select("product_id,url,is_primary")
+              .in("product_id", productIds),
+            supabase
+              .from("product_tags")
+              .select("product_id,tag_id")
+              .in("product_id", productIds),
+            supabase.from("tags").select("id,name"),
+          ])
+        : [
+            { data: [], error: null },
+            { data: [], error: null },
+            await supabase.from("tags").select("id,name"),
+          ];
 
-    if (imagesError) {
-      console.error("Supabase product images query failed.", imagesError.message);
+    if (imagesError || productTagsError || tagsError) {
+      console.error("Supabase product relations query failed.", {
+        imagesError: imagesError?.message,
+        productTagsError: productTagsError?.message,
+        tagsError: tagsError?.message,
+      });
       return NextResponse.json(
-        { error: "Không thể tải hình ảnh sản phẩm." },
+        { error: "Không thể tải hình ảnh hoặc nhãn sản phẩm." },
         { status: 502 }
       );
     }
@@ -64,7 +83,9 @@ export async function GET() {
     const categoryNames = new Map(
       (categories ?? []).map((category) => [category.id, category.name])
     );
+    const tagNames = new Map((tags ?? []).map((tag) => [tag.id, tag.name]));
     const imageByProduct = new Map<string, string>();
+    const tagsByProduct = new Map<string, string[]>();
     for (const image of [...(images ?? [])].sort(
       (left, right) => Number(right.is_primary) - Number(left.is_primary)
     )) {
@@ -72,11 +93,20 @@ export async function GET() {
         imageByProduct.set(image.product_id, image.url);
       }
     }
+    for (const relation of productTags ?? []) {
+      const tagName = tagNames.get(relation.tag_id);
+      if (!tagName) continue;
+      const productTagList = tagsByProduct.get(relation.product_id) ?? [];
+      productTagList.push(tagName);
+      tagsByProduct.set(relation.product_id, productTagList);
+    }
 
     return NextResponse.json({
+      categories: (categories ?? []).map((category) => category.name),
       products: (products ?? []).map((product) => {
         const category = categoryNames.get(product.category_id) ?? "Khác";
         const price = Number(product.base_price);
+        const productTagsForCard = tagsByProduct.get(product.id) ?? [];
         return {
           id: product.slug,
           slug: product.slug,
@@ -89,7 +119,8 @@ export async function GET() {
           stock: product.stock,
           image: imageByProduct.get(product.id) ?? "/images/logo.png",
           bgColor: categoryColors[category] ?? "#F3F4F6",
-          badge: categoryBadges[product.name],
+          tags: productTagsForCard,
+          badge: productTagsForCard[0] ?? categoryBadges[product.name],
         };
       }),
     });

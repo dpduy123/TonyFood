@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { logClientRequestFailure } from "@/lib/client-request-log";
+import AdminCatalogPanel from "./catalog-panel";
 
 interface AdminOrderItem {
   id: string;
@@ -62,16 +64,17 @@ export default function AdminPage() {
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<"products" | "orders">("orders");
 
   const loadOrders = useCallback(async (token: string) => {
     setLoading(true);
-    setError(null);
+    let status: number | null = null;
     try {
       const response = await fetch("/api/admin/orders", {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
+      status = response.status;
       const payload = (await response.json()) as {
         orders?: AdminOrder[];
         error?: string;
@@ -88,12 +91,8 @@ export default function AdminPage() {
         return next;
       });
     } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Không thể tải đơn hàng."
-      );
-      if (loadError instanceof Error && loadError.message.includes("quyền truy cập")) {
+      logClientRequestFailure("GET /api/admin/orders", status, loadError);
+      if (status === 401 || status === 403) {
         setAccessToken(null);
       }
     } finally {
@@ -110,7 +109,7 @@ export default function AdminPage() {
         .then(({ data, error: sessionError }) => {
           if (!active) return;
           if (sessionError) {
-            setError("Không thể kiểm tra phiên đăng nhập.");
+            logClientRequestFailure("Supabase Auth getSession", null, sessionError);
           } else if (data.session?.access_token) {
             setAccessToken(data.session.access_token);
           }
@@ -118,20 +117,12 @@ export default function AdminPage() {
         })
         .catch((sessionError: unknown) => {
           if (!active) return;
-          setError(
-            sessionError instanceof Error
-              ? sessionError.message
-              : "Không thể kiểm tra phiên đăng nhập."
-          );
+          logClientRequestFailure("Supabase Auth getSession", null, sessionError);
           setInitializing(false);
         });
     } catch (clientError) {
       window.setTimeout(() => {
-        setError(
-          clientError instanceof Error
-            ? clientError.message
-            : "Cấu hình Supabase chưa đầy đủ."
-        );
+        logClientRequestFailure("Initialize Supabase browser client", null, clientError);
         setInitializing(false);
       }, 0);
     }
@@ -148,7 +139,6 @@ export default function AdminPage() {
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
     try {
       const client = createSupabaseBrowserClient();
       const { data, error: signInError } = await client.auth.signInWithPassword({
@@ -162,10 +152,15 @@ export default function AdminPage() {
       setAccessToken(data.session.access_token);
       setPassword("");
     } catch (signInError) {
-      setError(
-        signInError instanceof Error
-          ? signInError.message
-          : "Không thể đăng nhập."
+      logClientRequestFailure(
+        "Supabase Auth signInWithPassword",
+        typeof signInError === "object" &&
+          signInError !== null &&
+          "status" in signInError &&
+          typeof signInError.status === "number"
+          ? signInError.status
+          : null,
+        signInError
       );
     }
   }
@@ -177,20 +172,16 @@ export default function AdminPage() {
       if (signOutError) throw signOutError;
       setAccessToken(null);
       setOrders([]);
-      setError(null);
+      setActiveSection("orders");
     } catch (signOutError) {
-      setError(
-        signOutError instanceof Error
-          ? signOutError.message
-          : "Không thể đăng xuất."
-      );
+      logClientRequestFailure("Supabase Auth signOut", null, signOutError);
     }
   }
 
   async function updateOrder(orderId: string, action: "confirm" | "cancel") {
     if (!accessToken) return;
     setWorkingOrder(orderId);
-    setError(null);
+    let status: number | null = null;
     try {
       const response = await fetch("/api/admin/orders/action", {
         method: "POST",
@@ -200,17 +191,14 @@ export default function AdminPage() {
         },
         body: JSON.stringify({ orderId, action }),
       });
+      status = response.status;
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
         throw new Error(payload.error ?? "Không thể cập nhật đơn hàng.");
       }
       await loadOrders(accessToken);
     } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Không thể cập nhật đơn hàng."
-      );
+      logClientRequestFailure("POST /api/admin/orders/action", status, actionError);
     } finally {
       setWorkingOrder(null);
     }
@@ -223,7 +211,7 @@ export default function AdminPage() {
   ) {
     if (!accessToken) return;
     setWorkingOrder(order.id);
-    setError(null);
+    let status: number | null = null;
     try {
       const response = await fetch("/api/admin/orders/action", {
         method: "POST",
@@ -237,17 +225,14 @@ export default function AdminPage() {
           adminNote,
         }),
       });
+      status = response.status;
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
         throw new Error(payload.error ?? "Không thể lưu thông tin đơn hàng.");
       }
       await loadOrders(accessToken);
     } catch (detailsError) {
-      setError(
-        detailsError instanceof Error
-          ? detailsError.message
-          : "Không thể lưu thông tin đơn hàng."
-      );
+      logClientRequestFailure("POST /api/admin/orders/action", status, detailsError);
     } finally {
       setWorkingOrder(null);
     }
@@ -259,7 +244,7 @@ export default function AdminPage() {
         <header className="mb-6 flex items-center justify-between rounded-2xl border border-neutral-200 bg-white p-4 shadow-xs">
           <div>
             <h1 className="text-xl font-extrabold text-[#0047AB]">Tony Food Admin</h1>
-            <p className="mt-1 text-xs text-neutral-500">Quản lý đơn hàng</p>
+            <p className="mt-1 text-xs text-neutral-500">Quản lý cửa hàng</p>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/" className="text-sm font-semibold text-[#0047AB]">
@@ -276,12 +261,6 @@ export default function AdminPage() {
             )}
           </div>
         </header>
-
-        {error && (
-          <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </p>
-        )}
 
         {initializing ? (
           <p className="rounded-2xl bg-white p-8 text-center text-sm text-neutral-500">
@@ -325,9 +304,47 @@ export default function AdminPage() {
             </form>
           </section>
         ) : (
-          <section>
+          <div className="grid gap-5 md:grid-cols-[220px_minmax(0,1fr)]">
+            <nav
+              aria-label="Quản lý cửa hàng"
+              className="flex gap-2 rounded-2xl border border-neutral-200 bg-white p-2 md:sticky md:top-6 md:flex-col md:self-start"
+            >
+              <button
+                type="button"
+                aria-current={activeSection === "products" ? "page" : undefined}
+                onClick={() => setActiveSection("products")}
+                className={`flex-1 rounded-xl px-4 py-3 text-left text-sm font-semibold md:flex-none ${
+                  activeSection === "products"
+                    ? "bg-[#0047AB] text-white"
+                    : "text-neutral-700 hover:bg-neutral-100"
+                }`}
+              >
+                Sản phẩm
+              </button>
+              <button
+                type="button"
+                aria-current={activeSection === "orders" ? "page" : undefined}
+                onClick={() => setActiveSection("orders")}
+                className={`flex-1 rounded-xl px-4 py-3 text-left text-sm font-semibold md:flex-none ${
+                  activeSection === "orders"
+                    ? "bg-[#0047AB] text-white"
+                    : "text-neutral-700 hover:bg-neutral-100"
+                }`}
+              >
+                Đơn hàng
+              </button>
+            </nav>
+
+            <section className="min-w-0">
+            {activeSection === "products" ? (
+              <AdminCatalogPanel accessToken={accessToken} />
+            ) : (
+              <>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Đơn hàng gần đây</h2>
+              <div>
+                <h2 className="text-lg font-bold">Đơn hàng gần đây</h2>
+                <p className="mt-1 text-sm text-neutral-500">Theo dõi đơn và ghi nhận thanh toán.</p>
+              </div>
               <button
                 type="button"
                 disabled={loading}
@@ -468,7 +485,10 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
-          </section>
+              </>
+            )}
+            </section>
+          </div>
         )}
       </div>
     </main>

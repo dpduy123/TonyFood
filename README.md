@@ -2,6 +2,29 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Configure Supabase
+
+The browser sign-in used by `/admin` needs the Supabase project URL and
+publishable key. From the project root, copy the example environment file:
+
+```bash
+cp .env.example .env.local
+```
+
+In `.env.local`, replace the placeholder values for:
+
+- `NEXT_PUBLIC_SUPABASE_URL` with the **Project URL** from Supabase Dashboard
+  → **Project Settings → API**.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` with the project's **publishable key**
+  from the API keys section. If the project only shows the legacy `anon` key,
+  use that value for this variable.
+- `SUPABASE_SERVICE_ROLE_KEY` with the server-side secret/service-role key.
+  Keep this key private; never rename it with a `NEXT_PUBLIC_` prefix or put it
+  in browser code.
+
+Save `.env.local`, then restart the Next.js development server so it reads the
+new environment variables. Do not commit `.env.local`.
+
 First, run the development server:
 
 ```bash
@@ -15,6 +38,11 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+If the page still reports that Supabase browser configuration is missing,
+check that `.env.local` is in the `tonyfood` project root, that both
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` have
+non-placeholder values, and that you restarted the development server.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
