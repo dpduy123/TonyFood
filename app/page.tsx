@@ -1,27 +1,64 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   SearchIcon,
   FilterIcon,
   ZaloIcon,
-  ExternalLinkIcon,
 } from "./components/icons";
-import { CATEGORIES, PRICE_RANGES, PRODUCTS, Product } from "./data/snacks";
+import { useCart } from "./components/cart-provider";
+import { CATEGORIES, PRICE_RANGES } from "./data/snacks";
+import type { CatalogProduct } from "./data/snacks";
 
 export default function CatalogPage() {
   const zaloUrl =
     process.env.NEXT_PUBLIC_ZALO_URL || "https://zalo.me/0817229979";
 
+  const { addItem, count } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [selectedPriceRange, setSelectedPriceRange] = useState("all");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function loadProducts() {
+      try {
+        const response = await fetch("/api/products", { cache: "no-store" });
+        const payload = (await response.json()) as {
+          products?: CatalogProduct[];
+          error?: string;
+        };
+        if (!response.ok || !Array.isArray(payload.products)) {
+          throw new Error(payload.error ?? "Không thể tải sản phẩm.");
+        }
+        if (active) setProducts(payload.products);
+      } catch (error) {
+        if (active) {
+          setProductsError(
+            error instanceof Error
+              ? error.message
+              : "Danh mục sản phẩm hiện không khả dụng."
+          );
+        }
+      } finally {
+        if (active) setProductsLoading(false);
+      }
+    }
+    void loadProducts();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Lọc sản phẩm theo Từ khóa, Danh mục và Khoảng giá (VND)
   const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter((item) => {
+    return products.filter((item) => {
       const matchSearch =
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.subtitle.toLowerCase().includes(searchQuery.toLowerCase());
@@ -36,21 +73,10 @@ export default function CatalogPage() {
 
       return matchSearch && matchCategory && matchPrice;
     });
-  }, [searchQuery, selectedCategory, selectedPriceRange]);
+  }, [products, searchQuery, selectedCategory, selectedPriceRange]);
 
-  // Hàm chuyển hướng sang Zalo kèm copy thông tin sản phẩm
-  const handleChatZalo = (product?: Product) => {
-    if (product) {
-      const orderText = `Xin chào Tony Food, mình muốn tư vấn đặt hàng món: ${product.name} (${product.unit}) - Giá: ${product.priceFormatted}`;
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        navigator.clipboard.writeText(orderText).catch(() => {});
-      }
-      setToastMessage(
-        `Đã sao chép: "${product.name}". Đang mở Zalo shop (0817229979)...`
-      );
-    } else {
-      setToastMessage("Đang chuyển hướng đến Zalo Tony Food (0817229979)...");
-    }
+  const handleChatZalo = () => {
+    setToastMessage("Đang chuyển hướng đến Zalo Tony Food (0817229979)...");
 
     setTimeout(() => {
       window.open(zaloUrl, "_blank", "noopener,noreferrer");
@@ -59,6 +85,16 @@ export default function CatalogPage() {
     setTimeout(() => {
       setToastMessage(null);
     }, 3500);
+  };
+
+  const handleAddToCart = (product: CatalogProduct) => {
+    const added = addItem(product.slug, product.stock);
+    setToastMessage(
+      added
+        ? `Đã thêm "${product.name}" vào giỏ hàng.`
+        : `Số lượng "${product.name}" trong giỏ đã đạt tồn kho.`
+    );
+    setTimeout(() => setToastMessage(null), 2500);
   };
 
   return (
@@ -96,16 +132,28 @@ export default function CatalogPage() {
             </div>
           </div>
 
-          {/* Nút Chat Zalo trực tiếp trên Header */}
-          <button
-            type="button"
-            onClick={() => handleChatZalo()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#0068FF] hover:bg-[#0052cc] text-white text-xs font-semibold shadow-xs active:scale-95 transition-all"
-            title="Chat tư vấn qua Zalo"
-          >
-            <ZaloIcon className="w-4 h-4" />
-            <span>Zalo Shop</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/cart"
+              className="relative inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#0047AB] hover:bg-[#003987] text-white text-xs font-semibold shadow-xs transition-colors"
+              aria-label={`Giỏ hàng, ${count} sản phẩm`}
+            >
+              <span aria-hidden="true">🛒</span>
+              <span>Giỏ hàng</span>
+              <span className="min-w-5 h-5 px-1 rounded-full bg-white text-[#0047AB] flex items-center justify-center text-[10px] font-bold">
+                {count}
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleChatZalo}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#0068FF] hover:bg-[#0052cc] text-white text-xs font-semibold shadow-xs active:scale-95 transition-all"
+              title="Chat tư vấn qua Zalo"
+            >
+              <ZaloIcon className="w-4 h-4" />
+              <span>Zalo Shop</span>
+            </button>
+          </div>
         </header>
 
         {/* Ảnh Bìa Danh Mục / Banner Poster Giới Thiệu */}
@@ -212,7 +260,18 @@ export default function CatalogPage() {
         </div>
 
         {/* Danh Sách Mặt Hàng (Product Catalog Grid) */}
-        {filteredProducts.length === 0 ? (
+        {productsError ? (
+          <div role="alert" className="bg-white rounded-3xl p-8 text-center border border-red-200 my-4">
+            <p className="text-sm font-semibold text-red-700">{productsError}</p>
+            <p className="text-xs text-neutral-500 mt-2">
+              Vui lòng thử tải lại trang hoặc liên hệ shop qua Zalo.
+            </p>
+          </div>
+        ) : productsLoading ? (
+          <div className="bg-white rounded-3xl p-8 text-center border border-neutral-200/70 my-4">
+            <p className="text-sm text-neutral-500">Đang tải sản phẩm...</p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
           <div className="bg-white rounded-3xl p-10 text-center border border-neutral-200/70 shadow-2xs my-4">
             <p className="text-3xl mb-2">📦</p>
             <p className="text-sm font-semibold text-neutral-800">
@@ -266,16 +325,15 @@ export default function CatalogPage() {
                     </span>
                   </div>
 
-                  {/* Nút bấm Chat Zalo Đặt Mua */}
+                  {/* Nút thêm sản phẩm vào giỏ hàng */}
                   <div className="mt-3">
                     <button
                       type="button"
-                      onClick={() => handleChatZalo(item)}
-                      className="inline-flex items-center gap-2 bg-[#18181b] hover:bg-black text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-xs active:scale-95 transition-all"
+                      onClick={() => handleAddToCart(item)}
+                      disabled={item.stock < 1}
+                      className="inline-flex items-center gap-2 bg-[#0047AB] hover:bg-[#003987] disabled:bg-neutral-300 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-xs active:scale-95 transition-all"
                     >
-                      <ZaloIcon className="w-4 h-4" />
-                      <span>Chat Zalo để mua</span>
-                      <ExternalLinkIcon className="w-3.5 h-3.5 text-neutral-400" />
+                      <span>{item.stock < 1 ? "Hết hàng" : "Thêm vào giỏ hàng"}</span>
                     </button>
                   </div>
                 </div>
