@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getPublicCatalog } from "@/lib/supabase/catalog";
 
 const categoryColors: Record<string, string> = {
   "Thịt bò & Heo": "#FEF2F2",
@@ -18,16 +18,7 @@ const categoryBadges: Record<string, string> = {
 
 export async function GET() {
   try {
-    const supabase = createSupabaseAdminClient();
-    const { data, error } = await supabase.rpc("api_public_catalog");
-    if (error) {
-      console.error("Supabase public catalog RPC failed.", error.message);
-      return NextResponse.json(
-        { error: "Không thể tải danh sách sản phẩm." },
-        { status: 502 }
-      );
-    }
-
+    const data = await getPublicCatalog();
     const catalog = data as {
       categories: string[];
       products: {

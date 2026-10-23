@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import {
   createSupabaseAdminClient,
   isAdminRequest,
 } from "@/lib/supabase/admin";
+import { publicCatalogCacheTag } from "@/lib/supabase/catalog";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -109,6 +111,7 @@ export async function POST(request: Request) {
           { status: conflict ? 409 : 400 }
         );
       }
+      revalidateTag(publicCatalogCacheTag, { expire: 0 });
       return NextResponse.json({ productId: data }, { status: product.id ? 200 : 201 });
     }
 
@@ -124,6 +127,7 @@ export async function POST(request: Request) {
         console.error("Archiving product failed.", error.message);
         return NextResponse.json({ error: "Không thể ẩn sản phẩm." }, { status: 400 });
       }
+      revalidateTag(publicCatalogCacheTag, { expire: 0 });
       return NextResponse.json({ archived: true });
     }
 
@@ -149,6 +153,7 @@ export async function POST(request: Request) {
           { status: inUse || error.code === "23505" ? 409 : 400 }
         );
       }
+      revalidateTag(publicCatalogCacheTag, { expire: 0 });
       return NextResponse.json({ category: data });
     }
 
@@ -173,6 +178,7 @@ export async function POST(request: Request) {
           { status: error.code === "23505" ? 409 : 400 }
         );
       }
+      revalidateTag(publicCatalogCacheTag, { expire: 0 });
       return NextResponse.json({ tag: data });
     }
 

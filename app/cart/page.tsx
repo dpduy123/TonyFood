@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useCart } from "../components/cart-provider";
 import type { CatalogProduct } from "../data/snacks";
-import { loadCatalog } from "../data/catalog-client";
+import { CatalogRequestError, loadCatalog } from "../data/catalog-client";
 import { logClientRequestFailure } from "@/lib/client-request-log";
 
 interface CreatedOrder {
@@ -36,7 +36,11 @@ export default function CartPage() {
         if (active) setProducts(catalog.products);
       } catch (error) {
         if (active) {
-          logClientRequestFailure("GET /api/products", null, error);
+          logClientRequestFailure(
+            "GET /api/products",
+            error instanceof CatalogRequestError ? error.status : null,
+            error
+          );
           setLoadError(
             error instanceof Error
               ? error.message

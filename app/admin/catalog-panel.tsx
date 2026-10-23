@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { logClientRequestFailure } from "@/lib/client-request-log";
+import { invalidateCatalogCache } from "../data/catalog-client";
 
 interface CatalogCategory {
   id: string;
@@ -160,6 +161,16 @@ export default function AdminCatalogPanel({
         error?: string;
       };
       if (!response.ok) throw new Error(payload.error ?? "Không thể lưu thay đổi.");
+      if (
+        action.action === "save_product" ||
+        action.action === "archive_product" ||
+        action.action === "save_category" ||
+        action.action === "delete_category" ||
+        action.action === "save_tag" ||
+        action.action === "delete_tag"
+      ) {
+        invalidateCatalogCache();
+      }
       return payload;
     } catch (error) {
       logClientRequestFailure("POST /api/admin/catalog", status, error);

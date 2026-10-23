@@ -12,7 +12,7 @@ import { useCart } from "./components/cart-provider";
 import { CATEGORIES, PRICE_RANGES } from "./data/snacks";
 import type { CatalogProduct } from "./data/snacks";
 import { logClientRequestFailure } from "@/lib/client-request-log";
-import { loadCatalog } from "./data/catalog-client";
+import { CatalogRequestError, loadCatalog } from "./data/catalog-client";
 
 export default function CatalogPage() {
   const zaloUrl =
@@ -37,7 +37,13 @@ export default function CatalogPage() {
           setCategories(["Tất cả", ...catalog.categories]);
         }
       } catch (error) {
-        if (active) logClientRequestFailure("GET /api/products", null, error);
+        if (active) {
+          logClientRequestFailure(
+            "GET /api/products",
+            error instanceof CatalogRequestError ? error.status : null,
+            error
+          );
+        }
       } finally {
         if (active) setProductsLoading(false);
       }
