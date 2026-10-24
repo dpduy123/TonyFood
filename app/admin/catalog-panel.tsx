@@ -21,7 +21,6 @@ interface ManagedProduct {
   id: string;
   name: string;
   slug: string;
-  short_description: string | null;
   price: number;
   unit: string;
   stock: number;
@@ -42,7 +41,6 @@ interface ProductDraft {
   id: string | null;
   name: string;
   slug: string;
-  subtitle: string;
   price: string;
   unit: string;
   stock: string;
@@ -59,7 +57,6 @@ type CatalogAction =
         id: string | null;
         name: string;
         slug: string;
-        subtitle: string;
         price: number;
         unit: string;
         stock: number;
@@ -77,7 +74,6 @@ const emptyDraft: ProductDraft = {
   id: null,
   name: "",
   slug: "",
-  subtitle: "",
   price: "",
   unit: "",
   stock: "0",
@@ -185,7 +181,6 @@ export default function AdminCatalogPanel({
             id: product.id,
             name: product.name,
             slug: product.slug,
-            subtitle: product.short_description ?? "",
             price: String(product.price),
             unit: product.unit,
             stock: String(product.stock),
@@ -210,7 +205,6 @@ export default function AdminCatalogPanel({
       const product = {
         ...draft,
         slug: draft.slug || makeSlug(draft.name),
-        subtitle: draft.subtitle,
         price: Number(draft.price),
         stock: Number(draft.stock),
         imageUrl: draft.imageUrl || null,
@@ -525,16 +519,6 @@ export default function AdminCatalogPanel({
                       <option key={category.id} value={category.id}>{category.name}</option>
                     ))}
                   </select>
-                </label>
-                <label className="text-sm font-medium sm:col-span-2">
-                  Mô tả ngắn
-                  <textarea
-                    rows={2}
-                    maxLength={500}
-                    value={draft.subtitle}
-                    onChange={(event) => setDraft((current) => ({ ...current, subtitle: event.target.value }))}
-                    className="mt-1.5 w-full rounded-xl border border-neutral-300 px-3 py-2.5"
-                  />
                 </label>
                 <fieldset className="sm:col-span-2">
                   <legend className="text-sm font-medium">Nhãn sản phẩm (có thể chọn nhiều)</legend>

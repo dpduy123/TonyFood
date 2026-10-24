@@ -93,8 +93,6 @@ export async function POST(request: Request) {
         p_id: product.id ?? null,
         p_name: product.name,
         p_slug: product.slug || slugify(product.name),
-        p_short_description:
-          typeof product.subtitle === "string" ? product.subtitle : null,
         p_price: product.price,
         p_unit: product.unit,
         p_stock: product.stock,

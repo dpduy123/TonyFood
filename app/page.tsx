@@ -57,9 +57,14 @@ export default function CatalogPage() {
   // Lọc sản phẩm theo Từ khóa, Danh mục và Khoảng giá (VND)
   const filteredProducts = useMemo(() => {
     return products.filter((item) => {
+      const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
       const matchSearch =
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.subtitle.toLowerCase().includes(searchQuery.toLowerCase());
+        !normalizedQuery ||
+        item.name.toLocaleLowerCase().includes(normalizedQuery) ||
+        item.category.toLocaleLowerCase().includes(normalizedQuery) ||
+        (item.tags ?? []).some((tag) =>
+          tag.toLocaleLowerCase().includes(normalizedQuery)
+        );
 
       const matchCategory =
         selectedCategory === "Tất cả" || item.category === selectedCategory;
@@ -284,75 +289,52 @@ export default function CatalogPage() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-3.5">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {filteredProducts.map((item) => (
-              <div
+              <article
                 key={item.id}
-                style={{ backgroundColor: item.bgColor }}
-                className="rounded-[24px] p-4 sm:p-5 relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between border border-black/5 shadow-xs hover:shadow-md transition-all group"
+                className="group min-w-0 overflow-hidden rounded-xl border border-[#161064]/30 bg-white shadow-xs transition-shadow hover:shadow-md sm:rounded-2xl"
               >
-                {/* Thông tin bên trái */}
-                <div className="relative z-10 max-w-full sm:max-w-[60%] flex flex-col justify-between mb-3 sm:mb-0">
-                  <div>
-                    {item.tags?.length ? (
-                      <div className="mb-2 flex flex-wrap gap-1.5">
-                        {item.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="inline-block rounded-full border border-neutral-200/50 bg-white px-2.5 py-0.5 text-[10px] font-bold text-neutral-800 shadow-2xs"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    ) : item.badge ? (
-                      <span className="inline-block px-2.5 py-0.5 rounded-full bg-white text-[10px] font-bold text-neutral-800 mb-2 border border-neutral-200/50 shadow-2xs">
-                        {item.badge}
-                      </span>
-                    ) : null}
-                    <h3 className="text-base sm:text-lg font-bold text-neutral-900 tracking-tight leading-snug">
-                      {item.name}
-                    </h3>
-                    <p className="text-xs text-neutral-600 font-medium mt-1 leading-relaxed line-clamp-2">
-                      {item.subtitle}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 flex items-baseline gap-2">
-                    <span className="text-lg sm:text-xl font-extrabold text-red-600 tracking-tight">
-                      {item.priceFormatted}
+                <div
+                  className="relative aspect-[4/5] overflow-hidden"
+                  style={{ backgroundColor: item.bgColor }}
+                >
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    sizes="(max-width: 640px) 33vw, 220px"
+                    className="object-contain p-1 transition-transform duration-300 group-hover:scale-105 sm:p-2"
+                  />
+                  {(item.tags?.[0] || item.badge) && (
+                    <span className="absolute left-1 top-1 max-w-[calc(100%-0.5rem)] truncate rounded-full bg-white/95 px-1.5 py-0.5 text-[8px] font-bold text-neutral-800 shadow-xs sm:left-2 sm:top-2 sm:px-2 sm:text-[10px]">
+                      {item.tags?.[0] ?? item.badge}
                     </span>
-                    <span className="text-xs text-neutral-500 font-medium">
-                      / {item.unit}
-                    </span>
-                  </div>
-
-                  {/* Nút thêm sản phẩm vào giỏ hàng */}
-                  <div className="mt-3">
-                    <button
-                      type="button"
-                      onClick={() => handleAddToCart(item)}
-                      disabled={item.stock < 1}
-                      className="inline-flex items-center gap-2 bg-[#0047AB] hover:bg-[#003987] disabled:bg-neutral-300 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-xs active:scale-95 transition-all"
-                    >
-                      <span>{item.stock < 1 ? "Hết hàng" : "Thêm vào giỏ hàng"}</span>
-                    </button>
-                  </div>
+                  )}
+                  <span className="absolute bottom-1 right-1 max-w-[90%] truncate bg-red-600 px-1.5 py-0.5 text-[10px] font-extrabold text-white shadow-sm sm:bottom-2 sm:right-2 sm:px-2 sm:text-sm">
+                    {item.priceFormatted}
+                  </span>
                 </div>
-
-                {/* Hình ảnh bên phải */}
-                <div className="relative w-full sm:w-[38%] h-36 sm:h-32 flex items-center justify-center sm:justify-end overflow-hidden pointer-events-none rounded-xl">
-                  <div className="relative w-full h-full scale-[1.03] group-hover:scale-[1.08] transition-transform duration-300">
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      fill
-                      sizes="(max-width: 640px) 100vw, 250px"
-                      className="object-contain"
-                    />
-                  </div>
+                <div className="flex min-h-[4.5rem] flex-col bg-[#161064] px-1.5 py-2 text-center text-white sm:min-h-24 sm:px-2.5 sm:py-2.5">
+                  <h3 className="line-clamp-2 text-[10px] font-bold leading-tight sm:text-sm">
+                    {item.name}
+                  </h3>
+                  <p className="mt-0.5 line-clamp-1 text-[9px] text-white/80 sm:text-xs">
+                    {item.unit}
+                  </p>
                 </div>
-              </div>
+                <div className="p-1 sm:p-2">
+                  <button
+                    type="button"
+                    onClick={() => handleAddToCart(item)}
+                    disabled={item.stock < 1}
+                    aria-label={`${item.stock < 1 ? "Hết hàng" : "Thêm vào giỏ hàng"}: ${item.name}`}
+                    className="w-full rounded-md bg-[#0047AB] px-1 py-1.5 text-[9px] font-semibold leading-tight text-white transition-colors hover:bg-[#003987] disabled:cursor-not-allowed disabled:bg-neutral-300 sm:rounded-lg sm:px-2 sm:py-2 sm:text-xs"
+                  >
+                    {item.stock < 1 ? "Hết hàng" : "Thêm vào giỏ"}
+                  </button>
+                </div>
+              </article>
             ))}
           </div>
         )}

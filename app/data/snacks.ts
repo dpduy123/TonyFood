@@ -2,7 +2,6 @@ export interface CatalogProduct {
   id: string;
   slug: string;
   name: string;
-  subtitle: string;
   category: string;
   price: number;
   priceFormatted: string;
