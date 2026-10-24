@@ -13,6 +13,13 @@ export interface CatalogProduct {
   tags?: string[];
 }
 
+export interface PriceRange {
+  id: string;
+  label: string;
+  min: number;
+  max: number;
+}
+
 export const CATEGORIES = [
   "Tất cả",
   "Thịt bò & Heo",
@@ -21,7 +28,7 @@ export const CATEGORIES = [
   "Viên thả lẩu",
 ];
 
-export const PRICE_RANGES = [
+export const PRICE_RANGES: PriceRange[] = [
   { id: "all", label: "Tất cả mức giá", min: 0, max: Infinity },
   { id: "under-60k", label: "Dưới 60.000₫", min: 0, max: 60000 },
   { id: "60k-120k", label: "60.000₫ - 120.000₫", min: 60000, max: 120000 },
